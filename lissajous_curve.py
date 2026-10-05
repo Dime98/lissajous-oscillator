@@ -39,7 +39,31 @@ def linear_sub_steps(current_coordinate, last_coordinate, distance_threshold):
     steps = int(np.ceil(distance // distance_threshold) + 1)
     substep_coordinates = np.linspace(last_coordinate, current_coordinate, steps)
     return substep_coordinates[1:]
-    return t_substeps[1:]
+
+
+def sub_steps(
+        current_coordinate,
+        t,
+        phase,
+        last_coordinate,
+        last_t,
+        last_phase,
+        distance_threshold,
+        amplitude,
+        ratio_x,
+        ratio_y,
+):
+    distance = np.linalg.norm(current_coordinate - last_coordinate)
+    if distance < distance_threshold:
+        return current_coordinate[np.newaxis, :]
+    steps = int(np.ceil(distance // distance_threshold) + 2)
+
+    substep_coordinates = []
+    for p in np.linspace(last_phase, phase, steps)[:-1]:
+        x = sine_movement(amplitude=amplitude, phase=p * ratio_x, t=t)
+        y = sine_movement(amplitude=amplitude, phase=p * ratio_y, t=t)
+        substep_coordinates.append(np.array([x, y]))
+    return substep_coordinates
 
 
 def main():
@@ -80,6 +104,9 @@ def main():
     debug = False  # circle at 0th column and row
 
     last_coordinate = None
+    last_t = None
+    last_phase = None
+
     while True:
         t += cv2.getTrackbarPos("time", window_name)
         # t += 1
@@ -97,16 +124,25 @@ def main():
 
         coordinates_to_display = np.copy([current_coordinate])
 
-        use_substeps = cv2.getTrackbarPos("use_substeps", window_name)
+        use_substeps = cv2.getTrackbarPos("substeps", window_name)
         if use_substeps and last_coordinate is not None:
-            substep_coordinates = linear_sub_steps(
+            substep_coordinates = sub_steps(
                 current_coordinate=current_coordinate,
+                t=t,
+                phase=phase,
                 last_coordinate=last_coordinate,
+                last_t=last_t,
+                last_phase=last_phase,
                 distance_threshold=circle_radius,
+                amplitude=amplitude,
+                ratio_x=ratio_x,
+                ratio_y=ratio_y,
             )
             coordinates_to_display = substep_coordinates
 
         last_coordinate = np.copy(current_coordinate)
+        last_t = t
+        last_phase = phase
 
         blur_kernel = cv2.getTrackbarPos("blur_kernel", window_name)
         blur_kernel = blur_kernel + 1 - blur_kernel % 2  # force kernel to be odd number

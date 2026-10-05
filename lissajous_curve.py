@@ -27,20 +27,26 @@ class Display:
     def create_canvas(self):
         return np.zeros((self.canvas_size, self.canvas_size, 3), dtype=np.float32)
 
+    def on_circle(self, value):
+        self.circle_radius = int(np.log(value * 10) // 1)
+
     def create_sliders(self):
         cv2.createTrackbar("time", self.window_name, 10, 200, lambda _: None)
         cv2.setTrackbarMin("time", self.window_name, 1)
 
         cv2.createTrackbar("blur_kernel", self.window_name, 1, 20, lambda _: None)
 
+        cv2.createTrackbar("circle", self.window_name, 10, 100, self.on_circle)
+        cv2.setTrackbarMin("circle", self.window_name, 1)
+
         cv2.createTrackbar("trail", self.window_name, 95, 100, lambda _: None)
         cv2.setTrackbarMin("trail", self.window_name, 1)
 
         cv2.createTrackbar("substeps", self.window_name, 0, 1, lambda _: None)
 
-        cv2.createTrackbar("ratio_x", self.window_name, 3, 20, lambda _: None)
+        cv2.createTrackbar("ratio_x", self.window_name, 3, 70, lambda _: None)
         cv2.setTrackbarMin("ratio_x", self.window_name, 1)
-        cv2.createTrackbar("ratio_y", self.window_name, 2, 20, lambda _: None)
+        cv2.createTrackbar("ratio_y", self.window_name, 2, 70, lambda _: None)
         cv2.setTrackbarMin("ratio_y", self.window_name, 1)
 
     def get_slider_value(self, name):
@@ -55,7 +61,7 @@ class Display:
 
         for co in coordinates:
             x, y = co.astype(np.uint16)
-            cv2.circle(self.canvas, (y, x), self.circle_radius, (color/2).tolist(), thickness=-1)
+            cv2.circle(self.canvas, (y, x), self.circle_radius, (color / 2).tolist(), thickness=-1)
             cv2.circle(self.canvas, (y, x), int(self.circle_radius * 2.5), color.tolist(), thickness=1)
 
         temp = np.copy(self.canvas)
@@ -64,8 +70,8 @@ class Display:
 
         if self.debug:
             x, y = coordinates[-1].astype(np.int16)
-            temp[x - self.debug_line_size: x + self.debug_line_size] = [0, 0.5, 0]
-            temp[:, y - self.debug_line_size: y + self.debug_line_size] = [0, 0.5, 0]
+            temp[x - self.debug_line_size : x + self.debug_line_size] = [0, 0.5, 0]
+            temp[:, y - self.debug_line_size : y + self.debug_line_size] = [0, 0.5, 0]
             cv2.circle(temp, (self.circle_radius, x), self.circle_radius, [0, 1, 0], thickness=2)
             cv2.circle(temp, (y, self.circle_radius), self.circle_radius, [0, 1, 0], thickness=2)
 

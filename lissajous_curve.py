@@ -2,13 +2,63 @@ import cv2
 import numpy as np
 
 
-def sine_movement(amplitude, phase, t):
-    return amplitude * (1 - np.cos(2 * np.pi * phase)) / 2
+class LissajousOscillator:
+    def __init__(self, frequency, amplitude, distance_threshold):
+        self.frequency = frequency
+        self.amplitude = amplitude
 
+        self.phase = 0
+        self.current_coordinate = None
+        self.last_coordinate = None
+        self.last_phase = None
 
-def triangle_movement(amplitude, phase, t):
-    phase = phase % 1.0
-    return amplitude * (1.0 - abs(2.0 * phase - 1.0))
+        self.points = None  # coordinates for display
+        self.distance_threshold = distance_threshold
+
+    def triangle_movement(self, phase):
+        phase = phase % 1.0
+        return self.amplitude * (1.0 - abs(2.0 * phase - 1.0))
+
+    def sine_movement(self, phase):
+        return self.amplitude * (1 - np.cos(2 * np.pi * phase)) / 2
+
+    def compute_point(self, dt, ratio_x, ratio_y):
+        self.phase = self.frequency * dt
+
+        phases = np.asarray([self.phase * ratio_x, self.phase * ratio_y])
+        x, y = self.sine_movement(phases)
+        self.current_coordinate = np.array([x, y])
+
+        return self.current_coordinate[np.newaxis, :]
+
+    def update_parameters(self, dt):
+        self.last_coordinate = np.copy(self.current_coordinate)
+        self.last_phase = self.phase
+
+    def linear_sub_steps(self):
+        if self.last_coordinate is None:
+            return self.current_coordinate[np.newaxis, :]
+
+        distance = np.linalg.norm(self.current_coordinate - self.last_coordinate)
+        if distance < self.distance_threshold:
+            return self.current_coordinate[np.newaxis, :]
+
+        steps = int((distance // self.distance_threshold) + 1)
+        substep_coordinates = np.linspace(self.last_coordinate, self.current_coordinate, steps)
+        return substep_coordinates[1:]
+
+    def sub_steps(self, ratio_x, ratio_y):
+        if self.last_coordinate is None:
+            return self.current_coordinate[np.newaxis, :]
+
+        distance = np.linalg.norm(self.current_coordinate - self.last_coordinate)
+        if distance < self.distance_threshold:
+            return self.current_coordinate[np.newaxis, :]
+
+        steps = int((distance // self.distance_threshold) + 1)
+        phases = np.linspace(self.last_phase, self.phase, steps)[:, np.newaxis] * np.array([ratio_x, ratio_y])
+        return self.sine_movement(phases)
+
 
 class Display:
     def __init__(self, window_name, canvas_size, circle_radius):
@@ -95,16 +145,21 @@ def main():
     circle_radius = int(canvas_size * 0.01)
 
     display = Display("lissajous_curve", canvas_size=canvas_size, circle_radius=circle_radius)
-
-    last_coordinate = None
-    last_t = None
-    last_phase = None
+    lissajous_curve = LissajousOscillator(frequency=frequency, amplitude=amplitude, distance_threshold=circle_radius)
 
     while True:
         dt += display.get_slider_value("time") / 10
 
         ratio_x = display.get_slider_value("ratio_x")
         ratio_y = display.get_slider_value("ratio_y")
+
+        lissajous_curve.points = lissajous_curve.compute_point(dt=dt, ratio_x=ratio_x, ratio_y=ratio_y)
+
+        use_substeps = display.get_slider_value("substeps")
+        if use_substeps:
+            lissajous_curve.points = lissajous_curve.sub_steps(ratio_x=ratio_x, ratio_y=ratio_y)
+
+        lissajous_curve.update_parameters(dt=dt)
 
         blur_kernel = display.get_slider_value("blur_kernel")
         blur_kernel = blur_kernel + 1 - blur_kernel % 2  # force kernel to be odd number

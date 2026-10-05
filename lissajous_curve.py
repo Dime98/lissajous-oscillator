@@ -75,7 +75,7 @@ def main():
     canvas = np.zeros((canvas_size, canvas_size, 3), dtype=np.uint8)
 
     # simulation parameters
-    t = 0
+    dt = 0
     frequency = 0.005
     amplitude = canvas_size - 1
 
@@ -112,11 +112,7 @@ def main():
     last_phase = None
 
     while True:
-        t += cv2.getTrackbarPos("time", window_name)
-        # t += 1
-
-        frequency = cv2.getTrackbarPos("frequency", window_name) / frequency_slider_factor
-        phase = frequency * t
+        dt += cv2.getTrackbarPos("time", window_name) / 10
 
         # sine_movement
         # triangle_movement
@@ -144,9 +140,7 @@ def main():
             )
             coordinates_to_display = substep_coordinates
 
-        last_coordinate = np.copy(current_coordinate)
-        last_t = t
-        last_phase = phase
+            last_t=dt,
 
         blur_kernel = cv2.getTrackbarPos("blur_kernel", window_name)
         blur_kernel = blur_kernel + 1 - blur_kernel % 2  # force kernel to be odd number

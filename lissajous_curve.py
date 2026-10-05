@@ -12,10 +12,14 @@ def triangle_movement(amplitude, phase, t):
 
 
 def drawing_overlay(canvas, coordinates, circle_radius, blur_kernel, alpha, debug):
+    color = [225, 225, 225]
+    if debug:
+        color = [225, 225, 225] if len(coordinates) < 2 else [0, 0, 255]
+
     for co in coordinates:
         x, y = co.astype(np.uint16)
-        cv2.circle(canvas, (y, x), circle_radius, [225, 225, 225], thickness=-1)
-        cv2.circle(canvas, (y, x), int(circle_radius * 2.5), [225, 225, 225], thickness=1)
+        cv2.circle(canvas, (y, x), circle_radius, color, thickness=-1)
+        cv2.circle(canvas, (y, x), int(circle_radius * 2.5), color, thickness=1)
 
     temp = np.copy(canvas)
     if blur_kernel > 1:

@@ -11,9 +11,11 @@ def triangle_movement(amplitude, phase, t):
     return amplitude * (1.0 - abs(2.0 * phase - 1.0))
 
 
-def drawing_overlay(canvas, x, y, circle_radius, blur_kernel, alpha, debug):
-    cv2.circle(canvas, (y, x), circle_radius, [225, 225, 225], thickness=-1)
-    cv2.circle(canvas, (y, x), int(circle_radius * 2.5), [225, 225, 225], thickness=1)
+def drawing_overlay(canvas, coordinates, circle_radius, blur_kernel, alpha, debug):
+    for co in coordinates:
+        x, y = co.astype(np.uint16)
+        cv2.circle(canvas, (y, x), circle_radius, [225, 225, 225], thickness=-1)
+        cv2.circle(canvas, (y, x), int(circle_radius * 2.5), [225, 225, 225], thickness=1)
 
     temp = np.copy(canvas)
     if blur_kernel > 1:
@@ -28,6 +30,16 @@ def drawing_overlay(canvas, x, y, circle_radius, blur_kernel, alpha, debug):
 
     canvas[canvas < 5] = 0
     return temp
+
+
+def linear_sub_steps(current_coordinate, last_coordinate, distance_threshold):
+    distance = np.linalg.norm(current_coordinate - last_coordinate)
+    if distance < distance_threshold:
+        return current_coordinate[np.newaxis, :]
+    steps = int(np.ceil(distance // distance_threshold) + 1)
+    substep_coordinates = np.linspace(last_coordinate, current_coordinate, steps)
+    return substep_coordinates[1:]
+    return t_substeps[1:]
 
 
 def main():
@@ -56,6 +68,8 @@ def main():
     cv2.createTrackbar("trail", window_name, 95, 100, lambda _: None)
     cv2.setTrackbarMin("trail", window_name, 1)
 
+    cv2.createTrackbar("substeps", window_name, 1, 1, lambda _: None)
+
     cv2.createTrackbar("ratio_x", window_name, 3, 20, lambda _: None)
     cv2.setTrackbarMin("ratio_x", window_name, 1)
     cv2.createTrackbar("ratio_y", window_name, 2, 20, lambda _: None)
@@ -65,6 +79,7 @@ def main():
     circle_radius = int(canvas_size * 0.01)
     debug = False  # circle at 0th column and row
 
+    last_coordinate = None
     while True:
         t += cv2.getTrackbarPos("time", window_name)
         # t += 1
@@ -78,13 +93,32 @@ def main():
         ratio_y = cv2.getTrackbarPos("ratio_y", window_name)
         x = sine_movement(amplitude=amplitude, phase=phase * ratio_x, t=t)
         y = sine_movement(amplitude=amplitude, phase=phase * ratio_y, t=t)
+        current_coordinate = np.array([x, y])
 
-        x = int(x)
-        y = int(y)
+        coordinates_to_display = np.copy([current_coordinate])
+
+        use_substeps = cv2.getTrackbarPos("use_substeps", window_name)
+        if use_substeps and last_coordinate is not None:
+            substep_coordinates = linear_sub_steps(
+                current_coordinate=current_coordinate,
+                last_coordinate=last_coordinate,
+                distance_threshold=circle_radius,
+            )
+            coordinates_to_display = substep_coordinates
+
+        last_coordinate = np.copy(current_coordinate)
 
         blur_kernel = cv2.getTrackbarPos("blur_kernel", window_name)
         blur_kernel = blur_kernel + 1 - blur_kernel % 2  # force kernel to be odd number
         alpha = cv2.getTrackbarPos("trail", window_name) / 100
+        temp = drawing_overlay(
+            canvas=canvas,
+            coordinates=coordinates_to_display,
+            circle_radius=circle_radius,
+            blur_kernel=blur_kernel,
+            alpha=alpha,
+            debug=debug,
+        )
 
         cv2.imshow("lissajous_curve", temp)
         key = cv2.waitKey(10)
